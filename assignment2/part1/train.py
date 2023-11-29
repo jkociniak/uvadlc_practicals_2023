@@ -52,10 +52,17 @@ def get_model(num_classes=100):
     #######################
 
     # Get the pretrained ResNet18 model on ImageNet from torchvision.models
-    pass
+    weights = models.ResNet18_Weights.IMAGENET1K_V1
+    model = models.resnet18(weights=weights, progress=False)
 
     # Randomly initialize and modify the model's last layer for CIFAR100.
-    pass
+    for param in model.parameters():
+        # Parameters of newly constructed modules have requires_grad=True by default
+        param.requires_grad = False
+    model.fc = nn.Linear(in_features=512, out_features=num_classes)
+    std = 0.01
+    nn.init.normal_(model.fc.weight, mean=0, std=std)
+    nn.init.zeros_(model.fc.bias)
 
     #######################
     # END OF YOUR CODE    #
@@ -85,22 +92,55 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
     #######################
 
     # Load the datasets
-    pass
+    train_set, val_set = get_train_validation_set(data_dir, augmentation_name=augmentation_name)
+    train_loader = data.DataLoader(train_set, batch_size=batch_size, shuffle=True, pin_memory=True)
+    val_loader = data.DataLoader(val_set, batch_size=batch_size, shuffle=False, pin_memory=True)
 
     # Initialize the optimizer (Adam) to train the last layer of the model.
-    pass
+    fc_params = model.fc.parameters()
+    optimizer = torch.optim.Adam(params=fc_params, lr=lr)
 
     # Training loop with validation after each epoch. Save the best model.
-    pass
+    loss_module = nn.CrossEntropyLoss()
+    loss_module = loss_module.to(device)
+    model = model.to(device)
+
+    train_losses = np.zeros(epochs)
+    val_accuracies = np.zeros(epochs)
+
+    best_model = None
+    best_acc = -np.inf
+    for epoch in tqdm(range(epochs)):
+        train_losses[epoch] = train_one_epoch(device, model, loss_module, optimizer, train_loader)
+        val_acc = evaluate_model(model, val_loader, device)
+        if val_acc > best_acc:
+            best_model = deepcopy(model)
+            best_acc = val_accuracies[epoch]
 
     # Load the best model on val accuracy and return it.
-    pass
+    model = best_model
 
     #######################
     # END OF YOUR CODE    #
     #######################
 
     return model
+
+
+def train_one_epoch(device, model, loss_module, optimizer, train_loader):
+    model.train()
+    model = model.to(device)
+    train_loss = 0.
+    for i, (x, y) in enumerate(train_loader):
+        optimizer.zero_grad()
+        x, y = x.to(device), y.to(device)
+        logits = model(x)
+        batch_mean_loss = loss_module(logits, y)
+        batch_mean_loss.backward()
+        optimizer.step()
+        batch_loss = batch_mean_loss * train_loader.batch_size
+        train_loss += batch_loss
+    return train_loss
 
 
 def evaluate_model(model, data_loader, device):
@@ -119,12 +159,22 @@ def evaluate_model(model, data_loader, device):
     # PUT YOUR CODE HERE  #
     #######################
     # Set model to evaluation mode (Remember to set it back to training mode in the training loop)
-    pass
+    model.eval()
+    model = model.to(device)
 
     # Loop over the dataset and compute the accuracy. Return the accuracy
     # Remember to use torch.no_grad().
-    pass
+    n_correct = 0
+    n_all = 0
+    with torch.no_grad():
+        for x, y in data_loader:
+            x, y = x.to(device), y.to(device)
+            logits = model(x)
+            preds = torch.argmax(logits, dim=1)
+            n_all += x.shape[0]
+            n_correct += (preds == y).sum().item()
 
+    accuracy = n_correct/n_all
     #######################
     # END OF YOUR CODE    #
     #######################
