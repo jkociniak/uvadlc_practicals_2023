@@ -1,0 +1,55 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_shared_course
+#SBATCH --gres=gpu:1
+#SBATCH --job-name=CLIPVP-CIFAR10
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=3
+#SBATCH --time=04:00:00
+#SBATCH --mem=32000M
+#SBATCH --output=slurm_output_%A.out
+
+module purge
+module load 2021
+module load Anaconda3/2021.05
+
+# activate the environment
+source activate dl2022
+
+# Run 1: Visual prompting CLIP on CIFAR-10 with standard text prompt
+code_dir=./
+
+# Standard constants
+arch="ViT-B/32"
+text_prompt_template="This is a photo of a {}"
+epochs=5
+
+## Set of experiments on CIFAR-10
+dataset="cifar10"
+root=~/data/
+mkdir -p $root
+
+methods=(fixed_patch fixed_patch padding padding)
+prompt_sizes=(1 1 30 30)
+datasets=(cifar100 cifar10 cifar100 cifar10)
+ckpts=(fixed_patch_1_cifar100_clip_ViT-B fixed_patch_1_cifar10_clip_ViT-B padding_30_cifar100_clip_ViT-B padding_30_cifar10_clip_ViT-B)
+
+for dataset in "${datasets[@]}"; do
+    for i in "${!methods[@]}"; do
+        method=${methods[$i]}
+        prompt_size=${prompt_sizes[$i]}
+        ckpt=${ckpts[$i]}
+        echo "Running experiment on $dataset with $method and prompt size $prompt_size"
+        python $code_dir/main.py \
+            --dataset $dataset \
+            --arch $arch \
+            --text_prompt_template "$text_prompt_template" \
+            --epochs $epochs \
+            --prompt_type visual_prompt \
+            --method $method \
+            --prompt_size $prompt_size \
+            --evaluate \
+            --resume $ckpt \
+            --root $root
+    done
+done
