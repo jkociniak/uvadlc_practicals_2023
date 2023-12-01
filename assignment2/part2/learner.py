@@ -72,8 +72,12 @@ class Learner:
         # TODO: Turn off gradients in both the image and the text encoder
         # Note: You need to keep the visual/deep prompt's parameters trainable
         # Hint: Check for "prompt_learner" and "deep_prompt" in the parameters' names
+        for name, param in self.clip.named_parameters():
+            if 'prompt_learner' in name or 'deep_prompt' in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
 
-        raise NotImplementedError
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -223,13 +227,18 @@ class Learner:
 
             # Steps ( your usual training loop :) ):
             # - Set the gradients to zero
+            self.optimizer.zero_grad()
             # - Move the images/targets to the device
+            images, target = images.to(self.device), target.to(self.device)
             # - Perform a forward pass (using self.clip)
+            output = self.clip(images)
             # - Compute the loss (using self.criterion)
+            loss = self.criterion(output, target)
             # - Perform a backward pass
+            loss.backward()
             # - Update the parameters
+            self.optimizer.step()
 
-            raise NotImplementedError
             #######################
             # END OF YOUR CODE    #
             #######################
@@ -286,10 +295,12 @@ class Learner:
 
                 # Steps ( your usual evaluation loop :) ):
                 # - Move the images/targets to the device
+                images, target = images.to(self.device), target.to(self.device)
                 # - Forward pass (using self.clip)
+                output = self.clip(images)
                 # - Compute the loss (using self.criterion)
+                loss = self.criterion(output, target)
 
-                raise NotImplementedError
                 #######################
                 # END OF YOUR CODE    #
                 #######################

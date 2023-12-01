@@ -162,16 +162,25 @@ class ZeroshotCLIP(nn.Module):
 
         # Steps:
         # - Tokenize each text prompt using CLIP's tokenizer.
+        tokenized_prompts = clip.tokenize(prompts).to(device)
+
         # - Compute the text features (encodings) for each prompt.
+        with torch.no_grad():
+            text_features = clip_model.encode_text(tokenized_prompts)
+
         # - Normalize the text features.
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
         # - Return a tensor of shape (num_prompts, 512).
+        assert text_features.shape == (len(prompts), 512)
+        return text_features
 
         # Hint:
         # - Read the CLIP API documentation for more details:
         #   https://github.com/openai/CLIP#api
 
         # remove this line once you implement the function
-        raise NotImplementedError("Implement the precompute_text_features function.")
+        # raise NotImplementedError("Implement the precompute_text_features function.")
 
         #######################
         # END OF YOUR CODE    #
@@ -200,17 +209,27 @@ class ZeroshotCLIP(nn.Module):
 
         # Steps:
         # - Compute the image features (encodings) using the CLIP model.
+        with torch.no_grad():
+            image_features = self.clip_model.encode_image(image)
         # - Normalize the image features.
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
         # - Compute similarity logits between the image features and the text features.
+        similarity_logits = image_features @ self.text_features.T
+
         #   You need to multiply the similarity logits with the logit scale (self.logit_scale).
+        similarity_logits = similarity_logits * self.logit_scale
+
         # - Return logits of shape (batch size, number of classes).
+        assert similarity_logits.shape == (image.shape[0], len(self.class_names))
+        return similarity_logits
 
         # Hint:
         # - Read the CLIP API documentation for more details:
         #   https://github.com/openai/CLIP#api
 
         # remove this line once you implement the function
-        raise NotImplementedError("Implement the model_inference function.")
+        # raise NotImplementedError("Implement the model_inference function.")
 
         #######################
         # END OF YOUR CODE    #
@@ -371,8 +390,16 @@ def main():
     # - Updating the accuracy meter is as simple as calling top1.update(accuracy, batch_size)
     # - You can use the model_inference method of the ZeroshotCLIP class to get the logits
 
+    for images, targets in tqdm(loader):
+        images = images.to(device)
+        targets = targets.to(device)
+        logits = clipzs.model_inference(images)
+        _, preds = logits.max(dim=1)
+        accuracy = (preds == targets).float().mean()
+        top1.update(accuracy, images.shape[0])
+
     # you can remove the following line once you have implemented the inference loop
-    raise NotImplementedError("Implement the inference loop")
+    # raise NotImplementedError("Implement the inference loop")
 
     #######################
     # END OF YOUR CODE    #

@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data as data
 import torchvision.models as models
+import tqdm
 
 from cifar100_utils import get_train_validation_set, get_test_set, set_dataset
 
@@ -119,6 +120,7 @@ def train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device
 
     # Load the best model on val accuracy and return it.
     model = best_model
+    torch.save(model, checkpoint_name)
 
     #######################
     # END OF YOUR CODE    #
@@ -182,7 +184,7 @@ def evaluate_model(model, data_loader, device):
     return accuracy
 
 
-def main(lr, batch_size, epochs, data_dir, seed, augmentation_name, test_noise):
+def main(lr, batch_size, epochs, data_dir, seed, augmentation_name, test_noise, device='cuda'):
     """
     Main function for training and testing the model.
 
@@ -198,22 +200,28 @@ def main(lr, batch_size, epochs, data_dir, seed, augmentation_name, test_noise):
     # PUT YOUR CODE HERE  #
     #######################
     # Set the seed for reproducibility
-    pass
+    set_seed(seed)
 
     # Set the device to use for training
-    pass
+    if device == 'mps':
+        if not torch.backends.mps.is_available():
+            raise Exception('requested mps backend is not available!')
+    elif device == 'cuda':
+        if not torch.cuda.is_available():
+            raise Exception('requested cuda backend is not available!')
+    else:
+        assert device == 'cpu'
 
     # Load the model
-    pass
-
-    # Get the augmentation to use
-    pass
+    model = get_model(100)
 
     # Train the model
-    pass
+    checkpoint_name = 'best_model.pt'
+    best_model = train_model(model, lr, batch_size, epochs, data_dir, checkpoint_name, device,
+                             augmentation_name=augmentation_name)
 
     # Evaluate the model on the test set
-    pass
+    evaluate_model(best_model, get_test_set(data_dir, test_noise), device)
 
     #######################
     # END OF YOUR CODE    #
@@ -235,14 +243,13 @@ if __name__ == '__main__':
                         help='Seed to use for reproducing results')
     parser.add_argument('--data_dir', default='data/', type=str,
                         help='Data directory where to store/find the CIFAR100 dataset.')
-    parser.add_argument('--dataset', default='cifar100', type=str, choices=['cifar100', 'cifar10'],
-                        help='Dataset to use.')
     parser.add_argument('--augmentation_name', default=None, type=str,
                         help='Augmentation to use.')
     parser.add_argument('--test_noise', default=False, action="store_true",
                         help='Whether to test the model on noisy images or not.')
+    parser.add_argument('--device', default='cpu', type=str, choices=['cpu', 'mps', 'cuda'],
+                        help='The device to run the computations on.')
 
     args = parser.parse_args()
     kwargs = vars(args)
-    set_dataset(kwargs.pop('dataset'))
     main(**kwargs)

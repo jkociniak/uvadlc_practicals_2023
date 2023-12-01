@@ -22,16 +22,16 @@ code_dir=./
 # Standard constants
 arch="ViT-B/32"
 text_prompt_template="This is a photo of a {}"
-epochs=20
+epochs=5
 
 ## Set of experiments on CIFAR-10
 dataset="cifar10"
 root=/scratch/$USER
 mkdir -p $root
 
-datasets=(cifar10)
-methods=(fixed_patch)
-prompt_sizes=(1)
+datasets=(cifar10 cifar100)
+methods=(fixed_patch padding)
+prompt_sizes=(1 30)
 
 for dataset in "${datasets[@]}"; do
     for i in "${!methods[@]}"; do
@@ -43,6 +43,7 @@ for dataset in "${datasets[@]}"; do
             --arch $arch \
             --text_prompt_template "$text_prompt_template" \
             --epochs $epochs \
+            --prompt_type visual_prompt \
             --method $method \
             --prompt_size $prompt_size \
             --root $root

@@ -22,9 +22,11 @@ from torchvision import transforms
 
 dataset_name = "cifar100"
 
+
 def set_dataset(dataset):
     global dataset_name
     dataset_name = dataset
+
 
 def get_dataset(dataset):
     if dataset == "cifar100":
@@ -33,6 +35,7 @@ def get_dataset(dataset):
         return CIFAR10
     else:
         raise ValueError("dataset should be either cifar100 or cifar10")
+
 
 class AddGaussianNoise(torch.nn.Module):
     def __init__(self, mean=0., std=0.1, always_apply=False):
@@ -52,7 +55,10 @@ class AddGaussianNoise(torch.nn.Module):
         # - Then, you can transform z s.t. it is sampled from N(self.mean, self.std)
         # - Finally, you can add the noise to the image.
 
-        raise NotImplementedError
+        z = torch.randn()
+        z = self.std * (z + self.mean)
+        return img + z
+
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -71,10 +77,15 @@ def add_augmentation(augmentation_name, transform_list):
     #######################
 
     # Create a new transformation based on the augmentation_name.
-    pass
+    transform = None
+    if augmentation_name == 'AddGaussianNoise':
+        transform = AddGaussianNoise()
+    else:
+        raise ValueError("Augmentation name should be either AddGaussianNoise or None.")
 
     # Add the new transformation to the list.
-    pass
+    if transform is not None:
+        transform_list.append(transform)
 
     #######################
     # END OF YOUR CODE    #

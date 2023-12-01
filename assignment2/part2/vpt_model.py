@@ -80,10 +80,15 @@ class VisualPromptCLIP(nn.Module):
 
         # Instructions:
         # - Given a list of prompts, compute the text features for each prompt.
+        with torch.no_grad():
+            tokenized_prompts = clip.tokenize(prompts).to(args.device)
+            text_features = clip_model.encode_text(tokenized_prompts).detach()
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
         # - Return a tensor of shape (num_prompts, 512).
+        assert text_features.shape == (len(prompts), 512)
 
         # remove this line once you implement the function
-        raise NotImplementedError("Write the code to compute text features.")
+        # raise NotImplementedError("Write the code to compute text features.")
 
         #######################
         # END OF YOUR CODE    #
@@ -111,14 +116,26 @@ class VisualPromptCLIP(nn.Module):
 
         # Steps:
         # - [!] Add the prompt to the image using self.prompt_learner.
+        image = self.prompt_learner(image)
+
         # - Compute the image features using the CLIP model.
+        image_features = self.clip_model.encode_image(image)
+        
         # - Normalize the image features.
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
         # - Compute similarity logits between the image features and the text features.
-        # - You need to multiply the similarity logits with the logit scale (clip_model.logit_scale).
+        similarity_logits = image_features @ self.text_features.T
+
+        #   You need to multiply the similarity logits with the logit scale (self.logit_scale).
+        similarity_logits = similarity_logits * self.logit_scale
+
         # - Return logits of shape (batch size, number of classes).
+        assert similarity_logits.shape == (image.shape[0], self.text_features.shape[0])
+        return similarity_logits
 
         # remove this line once you implement the function
-        raise NotImplementedError("Implement the model_inference function.")
+        # raise NotImplementedError("Implement the model_inference function.")
 
         #######################
         # END OF YOUR CODE    #
